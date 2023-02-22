@@ -10,7 +10,8 @@
 #include <mutex>
 #include <map>
 
-#include "Command.h"
+#include "command.h"
+#include "stringUtil.h"
 
 // macro
 #define MAX_LEN 200
@@ -235,7 +236,8 @@ void handle_client(int client_socket, int id)
 			}
 			else if (strcmp(str, SHOW_ROOMS) == 0)
 			{
-				string roomsStr = ">> ";
+				
+				string roomsStr;
 
 				for (auto& c: rooms)
 				{
@@ -247,34 +249,38 @@ void handle_client(int client_socket, int id)
 				roomsStr.pop_back();
 				roomsStr.pop_back();
 
-				send(client_socket, roomsStr.c_str(), sizeof(roomsStr), 0);
+				memset(str, 0, MAX_LEN);
+				strcat(str, SHOW_ROOMS);
+				strcat(str, "~");
+				strcat(str, roomsStr.c_str());
+
+				cout << str << endl;
+
+				send(client_socket, str, sizeof(str), 0);
 			}
 			else if (string(str).rfind(CREATE_ROOM) == 0)
 			{
 				// Format ->  #create_room:room_name:room_cap
-				char room_name[MAX_LEN], room_cap[MAX_LEN], onwerID[MAX_LEN];
 
-				const char *d = ":";
-				char *p;
-				p = strtok(str, d);
-				p = strtok(NULL, d);
-				strncpy(room_name, p, sizeof(p));
-				p = strtok(NULL, d);
-				strncpy(room_cap, p, sizeof(p));
+				vector<string> splits = split(str, ":");
+				string command = splits[0];
+				string room_name = splits[1];
+				string room_cap = splits[2];
 
 				// atoi(): convert string to int
-				rooms[roomId++] = {room_name, atoi(room_cap), id};
+				rooms[roomId++] = {room_name, atoi(room_cap.c_str()), id};
 
 				// cout << "Room name: " << room_name << endl;
 				// cout << "Room cap: " << room_cap << endl;
 				// cout << "Room onwer: " << id << endl;
 
 				memset(str, 0, MAX_LEN);
-				strcat(str, ">> Your room ");
-				strcat(str, room_name);
+				strcat(str, SHOW_ROOMS);
+				strcat(str, "~");
+				strcat(str, room_name.c_str());
 				strcat(str, " has been created.");
 
-				cout << colors[NUM_COLORS - 1] << room_name << " has been created." << endl
+				cout << colors[NUM_COLORS - 1] << str << endl
 					 << def_color;
 
 				send(client_socket, str, sizeof(str), 0);

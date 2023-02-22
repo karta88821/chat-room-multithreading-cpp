@@ -9,14 +9,16 @@ LIBS=-pthread
 # compile: g++ -c main.cpp
 
 all: server client
-server: server.o
-	$(CC) $(LIBS) -o server server.o
-client: client.o
-	$(CC) $(LIBS) -o client client.o
-server.o: server.cpp Command.h
+server: server.o stringUtil.o
+	$(CC) $(LIBS) -o server server.o stringUtil.o
+client: client.o stringUtil.o
+	$(CC) $(LIBS) -o client client.o stringUtil.o
+server.o: server.cpp
 	$(CC) -c server.cpp
-client.o: client.cpp Command.h
-	$(CC) -c client.cpp
+client.o: client.cpp
+	$(CC) -c client.cpp 
+stringUtil.o: stringUtil.cpp
+	$(CC) -c stringUtil.cpp
 
 .PHONY: clean
 clean:

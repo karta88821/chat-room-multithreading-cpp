@@ -10,7 +10,8 @@
 #include <signal.h>
 #include <mutex>
 
-#include "Command.h"
+#include "command.h"
+#include "stringUtil.h"
 
 // macro
 #define MAX_LEN 256
@@ -169,7 +170,7 @@ void recv_message(int client_socket)
 	{
 		if (exit_flag)
 			return;
-		char name[1024], str[MAX_LEN];
+		char name[1024], str[1024];
 		int color_code;
 
 		int bytes_received = recv(client_socket, name, sizeof(name), 0);
@@ -178,10 +179,13 @@ void recv_message(int client_socket)
 			continue;
 
 		// show server info
-		if (name[0] == '>' && name[1] == '>')
+		if (name[0] == '#')
 		{
+			vector<string> splits = split(name, "~");
+
 			eraseText(6); // erase "You : "
-			cout << colors[NUM_COLORS - 1] << name << endl << def_col;
+			cout << colors[NUM_COLORS - 1] << splits[1] << endl
+				 << def_col;
 			cout << colors[1] << "You : " << def_col;
 			fflush(stdout);
 		}
