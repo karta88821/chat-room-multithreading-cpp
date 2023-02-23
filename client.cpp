@@ -23,8 +23,6 @@ bool exit_flag = false;
 thread t_send, t_recv; // lvalues
 int client_socket;
 int select_room_id = 0;
-string def_col = "\033[0m";
-string colors[] = {"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"};
 
 void catch_ctrl_c(int signal);
 string color(int code);
@@ -66,7 +64,7 @@ int main()
 	send(client_socket, name, sizeof(name), 0);
 
 	cout << colors[NUM_COLORS - 1] << "\n\t  ====== Welcome to the chat-room ======   " << endl
-		 << def_col;
+		 << def_color;
 
 	thread t1(send_message, client_socket);
 	thread t2(recv_message, client_socket);
@@ -121,7 +119,7 @@ void send_message(int client_socket)
 {
 	while (1)
 	{
-		cout << colors[1] << "You : " << def_col;
+		cout << colors[1] << "You : " << def_color;
 		char str[MAX_LEN];
 		cin.getline(str, MAX_LEN);
 
@@ -149,6 +147,15 @@ void send_message(int client_socket)
 				strcat(str, roomname);
 				strcat(str, ":");
 				strcat(str, roomCapacity);
+			} 
+			else if (string(str).rfind(ENTER_ROOM) == 0)
+			{
+				cout << colors[NUM_COLORS - 1] << "Enter the room id you want to enter: " << endl;
+				char roomID[MAX_LEN];
+				cin.getline(roomID, MAX_LEN);
+
+				strcat(str, ":");
+				strcat(str, roomID);
 			}
 		}
 
@@ -163,56 +170,84 @@ void recv_message(int client_socket)
 	{
 		if (exit_flag)
 			return;
-		char name[1024], str[1024];
-		int color_code;
 
-		int bytes_received = recv(client_socket, name, sizeof(name), 0);
+		char str[MAX_LEN];
+		int color_code = NUM_COLORS - 1;
+
+		memset(str, 0, MAX_LEN);
+
+		int bytes_received = recv(client_socket, str, sizeof(str), 0);
 
 		if (bytes_received <= 0)
 			continue;
 
-		// show server info
-		if (name[0] == '#')
+		// command with msg and arguments
+		if (str[0] == '#')
 		{
-			vector<string> splits = split(name, ":");
+			vector<string> splits = split(str, ":");
 			string command = splits[0], msg = splits[1];
 
 			eraseText(6); // erase "You : "
 			cout << colors[NUM_COLORS - 1] << msg << endl
-				 << def_col;
+				 << def_color;
 
 			// enter the room that this client has created
-			
 			if (strncmp(command.c_str(), CREATE_ROOM, sizeof(CREATE_ROOM)) == 0)
 			{
 				int roomId = atoi(splits[2].c_str());
 				select_room_id = roomId;
 				
 				cout << colors[NUM_COLORS - 1] << "current roomID: " << select_room_id << endl
-					 << def_col;
+					 << def_color;
+
+				// Format -> #ER:roomID
+				char enterRoomMsg[MAX_LEN];
+				memset(enterRoomMsg, 0, MAX_LEN);
+				strcat(enterRoomMsg, ENTER_ROOM);
+				strcat(enterRoomMsg, ":");
+				strcat(enterRoomMsg, to_string(select_room_id).c_str());
+
+				send(client_socket, enterRoomMsg, sizeof(enterRoomMsg), 0);
 			}
 			
-			cout << colors[1] << "You : " << def_col;
+			cout << colors[1] << "You : " << def_color;
 			fflush(stdout);
 		}
-		else
+		// only msg
+		else if (str[0] == '*')
 		{
 			recv(client_socket, &color_code, sizeof(color_code), 0);
-			recv(client_socket, str, sizeof(str), 0);
 
 			eraseText(6); // erase "You : "
 
-			if (strcmp(name, "#NULL") != 0)
-				cout << color(color_code) << name << " : " << def_col << str << endl;
-			else
-				cout << color(color_code) << str << endl;
-			cout << colors[1] << "You : " << def_col;
+			cout << color(color_code) << str << endl;
+
+			cout << colors[1] << "You : " << def_color;
 
 			// When printing (e.g. printf), the output is put into a
 			// buffer and may not be written to the console until a
 			// newline character is displayed. To ensure that everything
 			// in the buffer is written to the console, fflush(stdout) may be used.
 			fflush(stdout);
+		}
+		else
+		{
+			//recv(client_socket, &color_code, sizeof(color_code), 0);
+			//recv(client_socket, str, sizeof(str), 0);
+
+			//eraseText(6); // erase "You : "
+
+			//if (strcmp(name, "#NULL") != 0)
+			//	cout << color(color_code) << name << " : " << def_color << str << endl;
+			//else
+			//	cout << color(color_code) << str << endl;
+			//cout << colors[1] << "You : " << def_color;
+
+			// When printing (e.g. printf), the output is put into a
+			// buffer and may not be written to the console until a
+			// newline character is displayed. To ensure that everything
+			// in the buffer is written to the console, fflush(stdout) may be used.
+			//fflush(stdout);
 		}
 	}
 }

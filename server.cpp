@@ -10,6 +10,7 @@
 #include <mutex>
 #include <map>
 #include <stdlib.h>
+#include <set>
 
 #include "command.h"
 #include "stringUtil.h"
@@ -31,15 +32,15 @@ struct client
 
 struct room
 {
-	string name;  // room name
-	int capacity; // root capacity
-	int owner_id; // who own this room
+	string name;     // room name
+	int capacity;    // root capacity
+	int owner_id;    // who own this room
+	set<int> clients;   
 };
 
 map<int, client> clients;
 map<int, room> rooms; // this room is lobby if and only if roomid == 0
-string def_color = "\033[0m";
-string colors[] = {"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"}; // 根據client id來選擇color -> id % NUM_COLORS
+
 int seed = 0;
 int roomId = 0; // client id
 mutex cout_mtx, clients_mtx, rooms_mtx;
@@ -157,29 +158,25 @@ void shared_print(string str, bool endLine = true)
 }
 
 // Broadcast message to all clients except the sender
-int broadcast_message(string message, int sender_id)
+int broadcast_message(const char message[], int sender_id, int room_id)
 {
 	char temp[MAX_LEN];
-	strcpy(temp, message.c_str());
+	strcpy(temp, message);
 
-	for (auto& c: clients)
-	{
-		if (c.first != sender_id)
-		{
-			send(c.second.socket, temp, sizeof(temp), 0);
+	for (auto& clientID: rooms[room_id].clients) {
+		if (clientID != sender_id) {
+			send(clients[clientID].socket, temp, sizeof(temp), 0);
 		}
 	}
+
 }
 
 // Broadcast a number to all clients except the sender
-int broadcast_message(int num, int sender_id)
+int broadcast_message(int num, int sender_id, int room_id)
 {
-	// ================== We can use binary search here ========================
-	for (auto& c: clients)
-	{
-		if (c.first != sender_id)
-		{
-			send(c.second.socket, &num, sizeof(num), 0);
+	for (auto& clientID: rooms[room_id].clients) {
+		if (clientID != sender_id) {
+			send(clients[clientID].socket, &num, sizeof(num), 0);
 		}
 	}
 }
@@ -221,15 +218,15 @@ void handle_client(int client_socket, int id)
 		if (bytes_received <= 0)
 			return;
 
-		if (strlen(str) > 0 && str[0] == '#')
+		if (str[0] == '#')
 		{
 			if (strcmp(str, EXIT) == 0)
 			{
 				// Display leaving message
 				string message = string(name) + string(" has left");
-				broadcast_message("#NULL", id);
-				broadcast_message(id, id);
-				broadcast_message(message, id);
+				//broadcast_message("#NULL", id);
+				//broadcast_message(id, id);
+				//broadcast_message(message, id);
 				shared_print(color(id) + message + def_color);
 				end_connection(id);
 				return;
@@ -270,7 +267,7 @@ void handle_client(int client_socket, int id)
 
 				// atoi(): convert string to int
 				lock_guard<mutex> guard(rooms_mtx);
-				rooms[roomId] = {room_name, atoi(room_cap.c_str()), id};
+				rooms[roomId] = {room_name, atoi(room_cap.c_str()), id, {}};
 
 				// cout << "Room name: " << room_name << endl;
 				// cout << "Room cap: " << room_cap << endl;
@@ -291,11 +288,50 @@ void handle_client(int client_socket, int id)
 					 << def_color;
 
 				send(client_socket, str, sizeof(str), 0);
+			} else if (string(str).rfind(ENTER_ROOM) == 0) {
+
+				cout << str << endl;
+
+				vector<string> splits = split(str, ":");
+				string command = splits[0];
+				int roomId = atoi(splits[1].c_str());
+
+				lock_guard<mutex> guard(rooms_mtx);
+				if (rooms[roomId].clients.size() == rooms[roomId].capacity) {
+					memset(str, 0, MAX_LEN);
+					strcat(str, "*");
+					strcat(str, "The room you select is full, please try another room.");
+					send(client_socket, str, sizeof(str), 0);
+					continue;
+				}
+
+				rooms[roomId].clients.insert(id);
+
+				// send to this client
+				//memset(str, 0, MAX_LEN);
+				//strcat(str, "*");
+				//strcat(str, "You are joined the room \'");
+				//strcat(str, rooms[roomId].name.c_str());
+				//strcat(str, "\'");
+				//send(client_socket, str, sizeof(str), 0);
+
+				// send to clients who has joined this room
+				char welcome_msg_to_other[MAX_LEN];
+				memset(welcome_msg_to_other, 0, MAX_LEN);
+				strcat(welcome_msg_to_other, "*");
+				strcat(welcome_msg_to_other, name);
+				strcat(welcome_msg_to_other, " has joined the room \'");
+				strcat(welcome_msg_to_other, rooms[roomId].name.c_str());
+				strcat(welcome_msg_to_other, "\'");
+
+				broadcast_message(welcome_msg_to_other, id, roomId);
+				broadcast_message(id, id, roomId);
+				shared_print(welcome_msg_to_other);
 			}
 		}
 		else
 		{
-			// roadcast_message(string(name), id); // broadcast name
+			// broadcast_message(string(name), id); // broadcast name
 			// broadcast_message(id, id);			 // broadcast color
 			// broadcast_message(string(str), id);	 // broadcast message
 			// shared_print(color(id) + name + " : " + def_color + str);
