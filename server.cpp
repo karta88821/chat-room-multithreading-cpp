@@ -9,6 +9,7 @@
 #include <thread>
 #include <mutex>
 #include <map>
+#include <stdlib.h>
 
 #include "command.h"
 #include "stringUtil.h"
@@ -240,7 +241,7 @@ void handle_client(int client_socket, int id)
 
 				for (auto& c: rooms)
 				{
-					string r = to_string(c.first) + ": " + c.second.name + ", ";
+					string r = "(" + to_string(c.first) + ")" + c.second.name + ", ";
 					roomsStr += r;
 				}
 
@@ -248,9 +249,10 @@ void handle_client(int client_socket, int id)
 				roomsStr.pop_back();
 				roomsStr.pop_back();
 
+				// Format -> #SR:msg
 				memset(str, 0, MAX_LEN);
 				strcat(str, SHOW_ROOMS);
-				strcat(str, "~");
+				strcat(str, ":");
 				strcat(str, roomsStr.c_str());
 
 				cout << str << endl;
@@ -268,17 +270,22 @@ void handle_client(int client_socket, int id)
 
 				// atoi(): convert string to int
 				lock_guard<mutex> guard(rooms_mtx);
-				rooms[roomId++] = {room_name, atoi(room_cap.c_str()), id};
+				rooms[roomId] = {room_name, atoi(room_cap.c_str()), id};
 
 				// cout << "Room name: " << room_name << endl;
 				// cout << "Room cap: " << room_cap << endl;
 				// cout << "Room onwer: " << id << endl;
 
+				// Format -> #CR:msg:roomID
 				memset(str, 0, MAX_LEN);
-				strcat(str, SHOW_ROOMS);
-				strcat(str, "~");
+				strcat(str, CREATE_ROOM);
+				strcat(str, ":");
 				strcat(str, room_name.c_str());
 				strcat(str, " has been created.");
+				strcat(str, ":");
+				strcat(str, to_string(roomId).c_str());
+
+				roomId++;
 
 				cout << colors[NUM_COLORS - 1] << str << endl
 					 << def_color;

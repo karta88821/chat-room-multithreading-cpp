@@ -22,6 +22,7 @@ using namespace std;
 bool exit_flag = false;
 thread t_send, t_recv; // lvalues
 int client_socket;
+int select_room_id = 0;
 string def_col = "\033[0m";
 string colors[] = {"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"};
 
@@ -148,18 +149,10 @@ void send_message(int client_socket)
 				strcat(str, roomname);
 				strcat(str, ":");
 				strcat(str, roomCapacity);
+			}
+		}
 
-				send(client_socket, str, sizeof(str), 0);
-			}
-			else if (string(str).rfind(SHOW_ROOMS) == 0)
-			{
-				send(client_socket, str, sizeof(str), 0);
-			}
-		}
-		else
-		{
-			send(client_socket, str, sizeof(str), 0);
-		}
+		send(client_socket, str, sizeof(str), 0);
 	}
 }
 
@@ -181,11 +174,24 @@ void recv_message(int client_socket)
 		// show server info
 		if (name[0] == '#')
 		{
-			vector<string> splits = split(name, "~");
+			vector<string> splits = split(name, ":");
+			string command = splits[0], msg = splits[1];
 
 			eraseText(6); // erase "You : "
-			cout << colors[NUM_COLORS - 1] << splits[1] << endl
+			cout << colors[NUM_COLORS - 1] << msg << endl
 				 << def_col;
+
+			// enter the room that this client has created
+			
+			if (strncmp(command.c_str(), CREATE_ROOM, sizeof(CREATE_ROOM)) == 0)
+			{
+				int roomId = atoi(splits[2].c_str());
+				select_room_id = roomId;
+				
+				cout << colors[NUM_COLORS - 1] << "current roomID: " << select_room_id << endl
+					 << def_col;
+			}
+			
 			cout << colors[1] << "You : " << def_col;
 			fflush(stdout);
 		}
