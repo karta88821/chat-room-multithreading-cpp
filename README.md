@@ -27,5 +27,6 @@ Run the client
 ```
 #EXIT : Exit the program
 #SR : Show chat rooms
-#CR : Create chat room with room_name and name_capacity
+#CR(room_name, room_capacity): Create chat room with the room_name and the room_capacity
+#ER(room_id) : Enter the room with the room_id
 ```
