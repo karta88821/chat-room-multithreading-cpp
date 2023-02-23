@@ -41,7 +41,7 @@ string def_color = "\033[0m";
 string colors[] = {"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"}; // 根據client id來選擇color -> id % NUM_COLORS
 int seed = 0;
 int roomId = 0; // client id
-mutex cout_mtx, clients_mtx;
+mutex cout_mtx, clients_mtx, rooms_mtx;
 
 string color(int code);
 void set_name(int id, char name[]);
@@ -187,7 +187,6 @@ void end_connection(int id)
 {
 	// 使用detach()時，main thread繼續進行，被調用thread會在後台繼續進行，main thread無法在取得該thread的控制權
 	// 當該thread結束時，runtime library會回收該thread的相關資源
-
 	lock_guard<mutex> guard(clients_mtx);
 	clients[id].th.detach();
 	close(clients[id].socket);
@@ -268,6 +267,7 @@ void handle_client(int client_socket, int id)
 				string room_cap = splits[2];
 
 				// atoi(): convert string to int
+				lock_guard<mutex> guard(rooms_mtx);
 				rooms[roomId++] = {room_name, atoi(room_cap.c_str()), id};
 
 				// cout << "Room name: " << room_name << endl;
