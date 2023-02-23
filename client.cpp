@@ -173,7 +173,6 @@ void recv_message(int client_socket)
 
 		char str[MAX_LEN];
 		int color_code = NUM_COLORS - 1;
-
 		memset(str, 0, MAX_LEN);
 
 		int bytes_received = recv(client_socket, str, sizeof(str), 0);
@@ -216,12 +215,12 @@ void recv_message(int client_socket)
 		// only msg
 		else if (str[0] == '*')
 		{
-			recv(client_socket, &color_code, sizeof(color_code), 0);
+			//recv(client_socket, &color_code, sizeof(color_code), 0);
 
 			eraseText(6); // erase "You : "
 
-			cout << color(color_code) << str << endl;
-
+			cout << colors[NUM_COLORS - 1] << str << endl
+				 << def_color;
 			cout << colors[1] << "You : " << def_color;
 
 			// When printing (e.g. printf), the output is put into a

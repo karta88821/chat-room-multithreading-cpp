@@ -32,10 +32,10 @@ struct client
 
 struct room
 {
-	string name;     // room name
-	int capacity;    // root capacity
-	int owner_id;    // who own this room
-	set<int> clients;   
+	string name;  // room name
+	int capacity; // root capacity
+	int owner_id; // who own this room
+	set<int> clients;
 };
 
 map<int, client> clients;
@@ -124,7 +124,7 @@ int main()
 
 	// release all clients before closing server socket
 	// 使用join()時，main thread會賭塞，等待目前被調用的thread終止，然後main thread回收被調用的thread之資源
-	for (auto& c: clients)
+	for (auto &c : clients)
 	{
 		if (c.second.th.joinable())
 		{
@@ -163,19 +163,22 @@ int broadcast_message(string message, int sender_id, int room_id)
 	char temp[MAX_LEN];
 	strcpy(temp, message.c_str());
 
-	for (auto& clientID: rooms[room_id].clients) {
-		if (clientID != sender_id) {
+	for (auto &clientID : rooms[room_id].clients)
+	{
+		if (clientID != sender_id)
+		{
 			send(clients[clientID].socket, temp, sizeof(temp), 0);
 		}
 	}
-
 }
 
 // Broadcast a number to all clients except the sender
 int broadcast_message(int num, int sender_id, int room_id)
 {
-	for (auto& clientID: rooms[room_id].clients) {
-		if (clientID != sender_id) {
+	for (auto &clientID : rooms[room_id].clients)
+	{
+		if (clientID != sender_id)
+		{
 			send(clients[clientID].socket, &num, sizeof(num), 0);
 		}
 	}
@@ -224,19 +227,19 @@ void handle_client(int client_socket, int id)
 			{
 				// Display leaving message
 				string message = string(name) + string(" has left");
-				//broadcast_message("#NULL", id);
-				//broadcast_message(id, id);
-				//broadcast_message(message, id);
+				// broadcast_message("#NULL", id);
+				// broadcast_message(id, id);
+				// broadcast_message(message, id);
 				shared_print(color(id) + message + def_color);
 				end_connection(id);
 				return;
 			}
 			else if (strcmp(str, SHOW_ROOMS) == 0)
 			{
-				
+
 				string roomsStr;
 
-				for (auto& c: rooms)
+				for (auto &c : rooms)
 				{
 					string r = "(" + to_string(c.first) + ")" + c.second.name + ", ";
 					roomsStr += r;
@@ -288,32 +291,44 @@ void handle_client(int client_socket, int id)
 					 << def_color;
 
 				send(client_socket, str, sizeof(str), 0);
-			} else if (string(str).rfind(ENTER_ROOM) == 0) {
+			}
+			else if (string(str).rfind(ENTER_ROOM) == 0)
+			{
 
-				cout << str << endl;
+				// cout << str << endl;
 
 				vector<string> splits = split(str, ":");
 				string command = splits[0];
 				int roomId = atoi(splits[1].c_str());
 
-				lock_guard<mutex> guard(rooms_mtx);
-				if (rooms[roomId].clients.size() == rooms[roomId].capacity) {
-					memset(str, 0, MAX_LEN);
-					strcat(str, "*");
-					strcat(str, "The room you select is full, please try another room.");
-					send(client_socket, str, sizeof(str), 0);
+				char msg[MAX_LEN];
+				if (rooms.count(roomId) == 0)
+				{
+					strcat(msg, "*");
+					strcat(msg, "The room you select do not exist, please try another room.");
+					send(client_socket, msg, sizeof(msg), 0);
+					memset(msg, 0, MAX_LEN);
+					continue;
+				}
+				else if (rooms[roomId].clients.size() == rooms[roomId].capacity)
+				{
+					strcat(msg, "*");
+					strcat(msg, "The room you select is full, please try another room.");
+					send(client_socket, msg, sizeof(msg), 0);
+					memset(msg, 0, MAX_LEN);
 					continue;
 				}
 
+				lock_guard<mutex> guard(rooms_mtx);
 				rooms[roomId].clients.insert(id);
 
 				// send to this client
-				//memset(str, 0, MAX_LEN);
-				//strcat(str, "*");
-				//strcat(str, "You are joined the room \'");
-				//strcat(str, rooms[roomId].name.c_str());
-				//strcat(str, "\'");
-				//send(client_socket, str, sizeof(str), 0);
+				// memset(str, 0, MAX_LEN);
+				// strcat(str, "*");
+				// strcat(str, "You are joined the room \'");
+				// strcat(str, rooms[roomId].name.c_str());
+				// strcat(str, "\'");
+				// send(client_socket, str, sizeof(str), 0);
 
 				// send to clients who has joined this room
 				string welcome_message = string("*") + string(name) + string(" has joined the room \'") + rooms[roomId].name + string("\'");
