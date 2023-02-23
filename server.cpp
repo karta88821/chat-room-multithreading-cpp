@@ -158,10 +158,10 @@ void shared_print(string str, bool endLine = true)
 }
 
 // Broadcast message to all clients except the sender
-int broadcast_message(const char message[], int sender_id, int room_id)
+int broadcast_message(string message, int sender_id, int room_id)
 {
 	char temp[MAX_LEN];
-	strcpy(temp, message);
+	strcpy(temp, message.c_str());
 
 	for (auto& clientID: rooms[room_id].clients) {
 		if (clientID != sender_id) {
@@ -316,17 +316,11 @@ void handle_client(int client_socket, int id)
 				//send(client_socket, str, sizeof(str), 0);
 
 				// send to clients who has joined this room
-				char welcome_msg_to_other[MAX_LEN];
-				memset(welcome_msg_to_other, 0, MAX_LEN);
-				strcat(welcome_msg_to_other, "*");
-				strcat(welcome_msg_to_other, name);
-				strcat(welcome_msg_to_other, " has joined the room \'");
-				strcat(welcome_msg_to_other, rooms[roomId].name.c_str());
-				strcat(welcome_msg_to_other, "\'");
+				string welcome_message = string("*") + string(name) + string(" has joined the room \'") + rooms[roomId].name + string("\'");
 
-				broadcast_message(welcome_msg_to_other, id, roomId);
+				broadcast_message(welcome_message, id, roomId);
 				broadcast_message(id, id, roomId);
-				shared_print(welcome_msg_to_other);
+				shared_print(welcome_message);
 			}
 		}
 		else
