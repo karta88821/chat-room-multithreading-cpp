@@ -148,7 +148,7 @@ void send_message(int client_socket)
 				strcat(str, roomname);
 				strcat(str, ":");
 				strcat(str, roomCapacity);
-			} 
+			}
 			else if (string(str).rfind(ENTER_ROOM) == 0)
 			{
 				cout << colors[NUM_COLORS - 1] << "Enter the room id you want to enter: " << endl;
@@ -158,7 +158,7 @@ void send_message(int client_socket)
 				strcat(str, ":");
 				strcat(str, roomID);
 			}
-		} 
+		}
 
 		send(client_socket, str, sizeof(str), 0);
 		memset(str, 0, MAX_LEN);
@@ -173,21 +173,36 @@ void recv_message(int client_socket)
 		if (exit_flag)
 			return;
 
-		char str[MAX_LEN];
+		char str[MAX_LEN], send_msg[MAX_LEN];
 		memset(str, 0, MAX_LEN);
 
-		int bytes_received = recv(client_socket, str, sizeof(str), 0);
-
-		if (bytes_received <= 0)
-			continue;
+		if (recv(client_socket, str, sizeof(str), 0) <= 0)
+			return;
 
 		// command with msg and arguments
+		if (str[0] == '*')
+		{
+			eraseText(6); // erase "You : "
+
+			cout << alert_color << str << endl
+				 << def_color;
+			cout << color(client_id) << "You : " << def_color;
+
+			// When printing (e.g. printf), the output is put into a
+			// buffer and may not be written to the console until a
+			// newline character is displayed. To ensure that everything
+			// in the buffer is written to the console, fflush(stdout) may be used.
+			fflush(stdout);
+			continue;
+		}
+
 		if (str[0] == '#')
 		{
 			vector<string> splits = split(str, ":");
 			string command = splits[0], msg = splits[1];
 
-			if (string(str).rfind(SET_CIENT_ID) == 0) {
+			if (string(str).rfind(SET_CIENT_ID) == 0)
+			{
 				client_id = atoi(msg.c_str());
 				continue;
 			}
@@ -201,51 +216,31 @@ void recv_message(int client_socket)
 			{
 				int roomId = atoi(splits[2].c_str());
 				select_room_id = roomId;
-				
+
 				cout << colors[NUM_COLORS - 1] << "current roomID: " << select_room_id << endl
 					 << def_color;
 
 				// Format -> #ER:roomID
-				char enterRoomMsg[MAX_LEN];
-				memset(enterRoomMsg, 0, MAX_LEN);
-				strcat(enterRoomMsg, ENTER_ROOM);
-				strcat(enterRoomMsg, ":");
-				strcat(enterRoomMsg, to_string(select_room_id).c_str());
+				combine(send_msg, ":", {ENTER_ROOM, to_string(select_room_id).c_str()});
 
-				send(client_socket, enterRoomMsg, sizeof(enterRoomMsg), 0);
+				send(client_socket, send_msg, sizeof(send_msg), 0);
 			}
-			
+
 			cout << color(client_id) << "You : " << def_color;
 			fflush(stdout);
+			continue;
 		}
-		// only msg
-		else if (str[0] == '*')
-		{
-			eraseText(6); // erase "You : "
 
-			cout << alert_color << str << endl << def_color;
-			cout << color(client_id) << "You : " << def_color;
+		// Format -> name:colorId:roomId:msg
+		vector<string> splits = split(str, ":");
+		string name = splits[0], msg = splits[3];
+		int color_code = atoi(splits[1].c_str());
 
-			// When printing (e.g. printf), the output is put into a
-			// buffer and may not be written to the console until a
-			// newline character is displayed. To ensure that everything
-			// in the buffer is written to the console, fflush(stdout) may be used.
-			fflush(stdout);
-		}
-		else
-		{
-			// Format -> name:colorId:roomId:msg
-			vector<string> splits = split(str, ":");
-			string name = splits[0], msg = splits[3];
-			int color_code = atoi(splits[1].c_str());
+		eraseText(6); // erase "You : "
 
-			eraseText(6); // erase "You : "
+		cout << color(color_code) << name << " : " << def_color << msg << endl;
+		cout << color(client_id) << "You : " << def_color;
 
-			cout << color(color_code) << name << " : " << def_color << msg << endl;
-			cout << color(client_id) << "You : " << def_color;
-
-			fflush(stdout);
-		}
-		memset(str, 0, MAX_LEN);
+		fflush(stdout);
 	}
 }
