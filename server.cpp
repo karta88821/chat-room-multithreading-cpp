@@ -16,8 +16,6 @@
 #include "stringUtil.h"
 
 // macro
-#define MAX_LEN 200
-#define NUM_COLORS 6
 #define MAX_ROOMs 3
 #define MAX_CLIENTS 15
 

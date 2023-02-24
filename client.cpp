@@ -13,10 +13,6 @@
 #include "command.h"
 #include "stringUtil.h"
 
-// macro
-#define MAX_LEN 256
-#define NUM_COLORS 6
-
 using namespace std;
 
 bool exit_flag = false;
@@ -219,8 +215,7 @@ void recv_message(int client_socket)
 
 			eraseText(6); // erase "You : "
 
-			cout << colors[NUM_COLORS - 1] << str << endl
-				 << def_color;
+			cout << alert_color << str << endl << def_color;
 			cout << colors[1] << "You : " << def_color;
 
 			// When printing (e.g. printf), the output is put into a
