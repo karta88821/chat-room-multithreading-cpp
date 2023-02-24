@@ -187,12 +187,15 @@ int broadcast_message(int num, int sender_id, int room_id)
 	}
 }
 
-void combine(char* res, const char* pattern, vector<const char*> strs) {
+void combine(char *res, const char *pattern, vector<const char *> strs)
+{
 	memset(res, 0, MAX_LEN);
 
-	for (int i=0; i<strs.size(); i++) {
+	for (int i = 0; i < strs.size(); i++)
+	{
 		strcat(res, strs[i]);
-		if (i != strs.size() - 1) {
+		if (i != strs.size() - 1)
+		{
 			strcat(res, pattern);
 		}
 	}
@@ -230,107 +233,108 @@ void handle_client(int client_socket, int id)
 	// recv msg from this client
 	while (1)
 	{
-		int bytes_received = recv(client_socket, str, sizeof(str), 0);
+		if (recv(client_socket, str, sizeof(str), 0) <= 0) return;
 
-		if (bytes_received <= 0)
-			return;
+		bool isCommand = str[0] == '#';
 
-		if (str[0] == '#')
-		{
-			if (strcmp(str, EXIT) == 0)
-			{
-				// Display leaving message
-				string message = string(name) + string(" has left");
-				// broadcast_message("#NULL", id);
-				// broadcast_message(id, id);
-				// broadcast_message(message, id);
-				shared_print(color(id) + message + def_color);
-				end_connection(id);
-				return;
-			}
-			else if (strcmp(str, SHOW_ROOMS) == 0)
-			{
-
-				string roomsStr;
-
-				for (auto &c : rooms)
-				{
-					string r = "(" + to_string(c.first) + ")" + c.second.name + ", ";
-					roomsStr += r;
-				}
-
-				// remove ", " from the back of roomsStr
-				roomsStr.pop_back();
-				roomsStr.pop_back();
-
-				// Format -> #SR:msg
-				combine(str, ":", {SHOW_ROOMS, roomsStr.c_str()});
-
-				cout << str << endl;
-
-				send(client_socket, str, sizeof(str), 0);
-			}
-			else if (string(str).rfind(CREATE_ROOM) == 0)
-			{
-				// Format ->  #create_room:room_name:room_cap
-				vector<string> splits = split(str, ":");
-				string command = splits[0];
-				string room_name = splits[1];
-				string room_cap = splits[2];
-
-				// atoi(): convert string to int
-				lock_guard<mutex> guard(rooms_mtx);
-				rooms[roomId] = {room_name, atoi(room_cap.c_str()), id, {}};
-
-				// Format -> #CR:msg:roomID
-				combine(str, ":", {CREATE_ROOM, string(room_name + " has been created.").c_str(), to_string(roomId).c_str()});
-
-				roomId++;
-
-				cout << colors[NUM_COLORS - 1] << str << endl << def_color;
-
-				send(client_socket, str, sizeof(str), 0);
-			}
-			else if (string(str).rfind(ENTER_ROOM) == 0)
-			{
-				vector<string> splits = split(str, ":");
-				string command = splits[0];
-				int roomId = atoi(splits[1].c_str());
-
-				if (rooms.count(roomId) == 0)
-				{
-					combine(msg, "\0", {"*", "The room you select do not exist, please try another room."});
-					send(client_socket, msg, sizeof(msg), 0);
-					memset(msg, 0, MAX_LEN);
-					continue;
-				}
-				else if (rooms[roomId].clients.size() == rooms[roomId].capacity)
-				{
-					combine(msg, "\0", {"*", "The room you select is full, please try another room."});
-					send(client_socket, msg, sizeof(msg), 0);
-					memset(msg, 0, MAX_LEN);
-					continue;
-				}
-
-				lock_guard<mutex> guard_rooms(rooms_mtx);
-				rooms[roomId].clients.insert(id);
-
-				lock_guard<mutex> guard_clients(clients_mtx);
-				clients[id].select_room_id = roomId;
-
-				// send to clients who has joined this room
-				combine(msg, "\0", {"*", name, " has joined the room \'", rooms[roomId].name.c_str(), "\'"});
-
-				send(client_socket, msg, sizeof(msg), 0);
-				broadcast_message(msg, id, roomId);
-				shared_print(msg);
-			}
-		}
-		else
+		// Handle messages of the room
+		if (!isCommand)
 		{
 			// Format -> name:colorId:roomId:msg
 			combine(msg, ":", {name, to_string(id).c_str(), to_string(clients[id].select_room_id).c_str(), str});
-			broadcast_message(msg, id, clients[id].select_room_id); 
+			broadcast_message(msg, id, clients[id].select_room_id);
+			continue;
+		}
+
+		// Handle commands
+
+		/****** EXIT = "#exit" ******/
+		if (strcmp(str, EXIT) == 0)
+		{
+			// Display leaving message
+			string message = string(name) + string(" has left");
+			// broadcast_message("#NULL", id);
+			// broadcast_message(id, id);
+			// broadcast_message(message, id);
+			shared_print(color(id) + message + def_color);
+			end_connection(id);
+			return;
+		}
+
+		/****** SHOW_ROOMS = "#SR" ******/
+		if (strcmp(str, SHOW_ROOMS) == 0)
+		{
+			string roomsStr;
+
+			for (auto &c : rooms)
+			{
+				string r = "(" + to_string(c.first) + ")" + c.second.name + ", ";
+				roomsStr += r;
+			}
+
+			// remove ", " from the back of roomsStr
+			roomsStr.pop_back();
+			roomsStr.pop_back();
+
+			// Format -> #SR:msg
+			combine(str, ":", {SHOW_ROOMS, roomsStr.c_str()});
+
+			cout << str << endl;
+
+			send(client_socket, str, sizeof(str), 0);
+		}
+		/****** CREATE_ROOM = "#CR" ******/
+		else if (string(str).rfind(CREATE_ROOM) == 0)
+		{
+			// Format ->  #create_room:room_name:room_cap
+			vector<string> splits = split(str, ":");
+			string command = splits[0], room_name = splits[1], room_cap = splits[2];
+
+			// atoi(): convert string to int
+			lock_guard<mutex> guard(rooms_mtx);
+			rooms[roomId] = {room_name, atoi(room_cap.c_str()), id, {}};
+
+			// Format -> #CR:msg:roomID
+			combine(str, ":", {CREATE_ROOM, string(room_name + " has been created.").c_str(), to_string(roomId).c_str()});
+
+			roomId++;
+
+			cout << colors[NUM_COLORS - 1] << str << endl << def_color;
+
+			send(client_socket, str, sizeof(str), 0);
+		}
+		/****** ENTER_ROOM = "#ER"******/
+		else if (string(str).rfind(ENTER_ROOM) == 0)
+		{
+			vector<string> splits = split(str, ":");
+			string command = splits[0];
+			int roomId = atoi(splits[1].c_str());
+
+			if (rooms.count(roomId) == 0)
+			{
+				combine(msg, "\0", {"*", "The room you select do not exist, please try another room."});
+				send(client_socket, msg, sizeof(msg), 0);
+				continue;
+			}
+			else if (rooms[roomId].clients.size() == rooms[roomId].capacity)
+			{
+				combine(msg, "\0", {"*", "The room you select is full, please try another room."});
+				send(client_socket, msg, sizeof(msg), 0);
+				continue;
+			}
+
+			lock_guard<mutex> guard_rooms(rooms_mtx);
+			rooms[roomId].clients.insert(id);
+
+			lock_guard<mutex> guard_clients(clients_mtx);
+			clients[id].select_room_id = roomId;
+
+			// send to clients who has joined this room
+			combine(msg, "\0", {"*", name, " has joined the room \'", rooms[roomId].name.c_str(), "\'"});
+
+			send(client_socket, msg, sizeof(msg), 0);
+			broadcast_message(msg, id, roomId);
+			shared_print(msg);
 		}
 	}
 }
