@@ -15,6 +15,10 @@
 
 using namespace std;
 
+std::string def_color = "\033[0m";
+std::string alert_color = "\033[31m";
+std::string colors[] = {"\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m"}; // 根據client id來選擇color -> id % NUM_COLORS
+
 bool exit_flag = false;
 thread t_send, t_recv; // lvalues
 int client_socket;
