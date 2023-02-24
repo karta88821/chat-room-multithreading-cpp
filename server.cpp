@@ -187,6 +187,17 @@ int broadcast_message(int num, int sender_id, int room_id)
 	}
 }
 
+void combine(char* res, const char* pattern, vector<const char*> strs) {
+	memset(res, 0, MAX_LEN);
+
+	for (int i=0; i<strs.size(); i++) {
+		strcat(res, strs[i]);
+		if (i != strs.size() - 1) {
+			strcat(res, pattern);
+		}
+	}
+}
+
 void end_connection(int id)
 {
 	// 使用detach()時，main thread繼續進行，被調用thread會在後台繼續進行，main thread無法在取得該thread的控制權
@@ -199,18 +210,15 @@ void end_connection(int id)
 
 void handle_client(int client_socket, int id)
 {
-	char name[MAX_LEN], str[MAX_LEN];
+	char name[MAX_LEN], str[MAX_LEN], msg[MAX_LEN];
 
-	// recv name
+	// get client name
 	recv(client_socket, name, sizeof(name), 0);
 	set_name(id, name);
 
 	// set client id
 	char setId[MAX_LEN];
-	memset(setId, 0, MAX_LEN);
-	strcat(setId, SET_CIENT_ID);
-	strcat(setId, ":");
-	strcat(setId, to_string(id).c_str());
+	combine(setId, ":", {SET_CIENT_ID, to_string(id).c_str()});
 	send(client_socket, setId, sizeof(setId), 0);
 
 	// welcome message
@@ -256,10 +264,7 @@ void handle_client(int client_socket, int id)
 				roomsStr.pop_back();
 
 				// Format -> #SR:msg
-				memset(str, 0, MAX_LEN);
-				strcat(str, SHOW_ROOMS);
-				strcat(str, ":");
-				strcat(str, roomsStr.c_str());
+				combine(str, ":", {SHOW_ROOMS, roomsStr.c_str()});
 
 				cout << str << endl;
 
@@ -278,18 +283,11 @@ void handle_client(int client_socket, int id)
 				rooms[roomId] = {room_name, atoi(room_cap.c_str()), id, {}};
 
 				// Format -> #CR:msg:roomID
-				memset(str, 0, MAX_LEN);
-				strcat(str, CREATE_ROOM);
-				strcat(str, ":");
-				strcat(str, room_name.c_str());
-				strcat(str, " has been created.");
-				strcat(str, ":");
-				strcat(str, to_string(roomId).c_str());
+				combine(str, ":", {CREATE_ROOM, string(room_name + " has been created.").c_str(), to_string(roomId).c_str()});
 
 				roomId++;
 
-				cout << colors[NUM_COLORS - 1] << str << endl
-					 << def_color;
+				cout << colors[NUM_COLORS - 1] << str << endl << def_color;
 
 				send(client_socket, str, sizeof(str), 0);
 			}
@@ -299,21 +297,16 @@ void handle_client(int client_socket, int id)
 				string command = splits[0];
 				int roomId = atoi(splits[1].c_str());
 
-				char msg[MAX_LEN];
-				memset(msg, 0, MAX_LEN);
-
 				if (rooms.count(roomId) == 0)
 				{
-					strcat(msg, "*");
-					strcat(msg, "The room you select do not exist, please try another room.");
+					combine(msg, "\0", {"*", "The room you select do not exist, please try another room."});
 					send(client_socket, msg, sizeof(msg), 0);
 					memset(msg, 0, MAX_LEN);
 					continue;
 				}
 				else if (rooms[roomId].clients.size() == rooms[roomId].capacity)
 				{
-					strcat(msg, "*");
-					strcat(msg, "The room you select is full, please try another room.");
+					combine(msg, "\0", {"*", "The room you select is full, please try another room."});
 					send(client_socket, msg, sizeof(msg), 0);
 					memset(msg, 0, MAX_LEN);
 					continue;
@@ -326,39 +319,18 @@ void handle_client(int client_socket, int id)
 				clients[id].select_room_id = roomId;
 
 				// send to clients who has joined this room
-				strcat(msg, "*");
-				strcat(msg, name);
-				strcat(msg, " has joined the room \'");
-				strcat(msg, rooms[roomId].name.c_str());
-				strcat(msg, "\'");
+				combine(msg, "\0", {"*", name, " has joined the room \'", rooms[roomId].name.c_str(), "\'"});
 
 				send(client_socket, msg, sizeof(msg), 0);
 				broadcast_message(msg, id, roomId);
-
 				shared_print(msg);
 			}
 		}
 		else
 		{
 			// Format -> name:colorId:roomId:msg
-			// string msg = string(name) + string(":") + to_string(id) + string(":") + to_string(clients[id].select_room_id) + string(":") + string(str);
-
-			char msg[MAX_LEN];
-			memset(msg, 0, MAX_LEN);
-			strcat(msg, name);
-			strcat(msg, ":");
-			strcat(msg, to_string(id).c_str());
-			strcat(msg, ":");
-			strcat(msg, to_string(clients[id].select_room_id).c_str());
-			strcat(msg, ":");
-			strcat(msg, str);
-
-			broadcast_message(msg, id, clients[id].select_room_id); // broadcast name
-			// broadcast_message(id, id, clients[id].select_room_id);			 // broadcast color
-			// broadcast_message(string(str), id, clients[id].select_room_id);	 // broadcast message
-			shared_print(msg);
-			// shared_print(color(id) + name + " : " + def_color + str);
+			combine(msg, ":", {name, to_string(id).c_str(), to_string(clients[id].select_room_id).c_str(), str});
+			broadcast_message(msg, id, clients[id].select_room_id); 
 		}
-		memset(str, 0, MAX_LEN);
 	}
 }
