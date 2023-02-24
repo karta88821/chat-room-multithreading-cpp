@@ -26,6 +26,7 @@ struct client
 	string name; // client name
 	int socket;	 // a socket for this client
 	thread th;	 // a thread for this client
+	int select_room_id = 0;
 };
 
 struct room
@@ -200,16 +201,19 @@ void handle_client(int client_socket, int id)
 	recv(client_socket, name, sizeof(name), 0);
 	set_name(id, name);
 
-	// welcome message
-	string welcome_message = string(name) + string(" has joined");
+	// set client id
+	char setId[MAX_LEN];
+	memset(setId, 0, MAX_LEN);
+	strcat(setId, SET_CIENT_ID);
+	strcat(setId, ":");
+	strcat(setId, to_string(id).c_str());
+	send(client_socket, setId, sizeof(setId), 0);
 
-	// FIX: 當使用者進入房間後在讓該房間李的人知道
-	// send welcome msg to other clients
-	// broadcast_message("#NULL", id);
-	// broadcast_message(id, id);
-	// broadcast_message(welcome_message, id);
+	// welcome message
+	string welcome_message = color(id) + string("*") + string(name) + string(" has joined");
 
 	shared_print(color(id) + welcome_message + def_color);
+	broadcast_message(welcome_message, id, 0);
 
 	// recv msg from this client
 	while (1)
@@ -260,7 +264,6 @@ void handle_client(int client_socket, int id)
 			else if (string(str).rfind(CREATE_ROOM) == 0)
 			{
 				// Format ->  #create_room:room_name:room_cap
-
 				vector<string> splits = split(str, ":");
 				string command = splits[0];
 				string room_name = splits[1];
@@ -269,10 +272,6 @@ void handle_client(int client_socket, int id)
 				// atoi(): convert string to int
 				lock_guard<mutex> guard(rooms_mtx);
 				rooms[roomId] = {room_name, atoi(room_cap.c_str()), id, {}};
-
-				// cout << "Room name: " << room_name << endl;
-				// cout << "Room cap: " << room_cap << endl;
-				// cout << "Room onwer: " << id << endl;
 
 				// Format -> #CR:msg:roomID
 				memset(str, 0, MAX_LEN);
@@ -292,14 +291,13 @@ void handle_client(int client_socket, int id)
 			}
 			else if (string(str).rfind(ENTER_ROOM) == 0)
 			{
-
-				// cout << str << endl;
-
 				vector<string> splits = split(str, ":");
 				string command = splits[0];
 				int roomId = atoi(splits[1].c_str());
 
 				char msg[MAX_LEN];
+				memset(msg, 0, MAX_LEN);
+
 				if (rooms.count(roomId) == 0)
 				{
 					strcat(msg, "*");
@@ -317,31 +315,46 @@ void handle_client(int client_socket, int id)
 					continue;
 				}
 
-				lock_guard<mutex> guard(rooms_mtx);
+				lock_guard<mutex> guard_rooms(rooms_mtx);
 				rooms[roomId].clients.insert(id);
 
-				// send to this client
-				// memset(str, 0, MAX_LEN);
-				// strcat(str, "*");
-				// strcat(str, "You are joined the room \'");
-				// strcat(str, rooms[roomId].name.c_str());
-				// strcat(str, "\'");
-				// send(client_socket, str, sizeof(str), 0);
+				lock_guard<mutex> guard_clients(clients_mtx);
+				clients[id].select_room_id = roomId;
 
 				// send to clients who has joined this room
-				string welcome_message = string("*") + string(name) + string(" has joined the room \'") + rooms[roomId].name + string("\'");
+				strcat(msg, "*");
+				strcat(msg, name);
+				strcat(msg, " has joined the room \'");
+				strcat(msg, rooms[roomId].name.c_str());
+				strcat(msg, "\'");
 
-				broadcast_message(welcome_message, id, roomId);
-				broadcast_message(id, id, roomId);
-				shared_print(welcome_message);
+				send(client_socket, msg, sizeof(msg), 0);
+				broadcast_message(msg, id, roomId);
+
+				shared_print(msg);
 			}
 		}
 		else
 		{
-			// broadcast_message(string(name), id); // broadcast name
-			// broadcast_message(id, id);			 // broadcast color
-			// broadcast_message(string(str), id);	 // broadcast message
+			// Format -> name:colorId:roomId:msg
+			// string msg = string(name) + string(":") + to_string(id) + string(":") + to_string(clients[id].select_room_id) + string(":") + string(str);
+
+			char msg[MAX_LEN];
+			memset(msg, 0, MAX_LEN);
+			strcat(msg, name);
+			strcat(msg, ":");
+			strcat(msg, to_string(id).c_str());
+			strcat(msg, ":");
+			strcat(msg, to_string(clients[id].select_room_id).c_str());
+			strcat(msg, ":");
+			strcat(msg, str);
+
+			broadcast_message(msg, id, clients[id].select_room_id); // broadcast name
+			// broadcast_message(id, id, clients[id].select_room_id);			 // broadcast color
+			// broadcast_message(string(str), id, clients[id].select_room_id);	 // broadcast message
+			shared_print(msg);
 			// shared_print(color(id) + name + " : " + def_color + str);
 		}
+		memset(str, 0, MAX_LEN);
 	}
 }
