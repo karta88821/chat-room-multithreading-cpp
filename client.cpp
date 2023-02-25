@@ -24,6 +24,7 @@ thread t_send, t_recv; // lvalues
 int client_socket;
 int client_id;
 int select_room_id = 0;
+string select_room_name = "Lobby";
 
 void catch_ctrl_c(int signal);
 string color(int code);
@@ -120,7 +121,7 @@ void send_message(int client_socket)
 {
 	while (1)
 	{
-		cout << color(client_id) << "You : " << def_color;
+		cout << color(client_id) << "[" << select_room_name << "]" << "You : " << def_color;
 		char str[MAX_LEN];
 		cin.getline(str, MAX_LEN);
 
@@ -179,14 +180,14 @@ void recv_message(int client_socket)
 		if (recv(client_socket, str, sizeof(str), 0) <= 0)
 			return;
 
-		// command with msg and arguments
+		// Handle msg
 		if (str[0] == '*')
 		{
-			eraseText(6); // erase "You : "
+			eraseText(100); // erase "You : "
 
 			cout << alert_color << str << endl
 				 << def_color;
-			cout << color(client_id) << "You : " << def_color;
+			cout << color(client_id) << "[" << select_room_name << "]" << "You : " << def_color;
 
 			// When printing (e.g. printf), the output is put into a
 			// buffer and may not be written to the console until a
@@ -196,18 +197,38 @@ void recv_message(int client_socket)
 			continue;
 		}
 
+		// Handle commands
 		if (str[0] == '#')
 		{
-			vector<string> splits = split(str, ":");
-			string command = splits[0], msg = splits[1];
 
 			if (string(str).rfind(SET_CIENT_ID) == 0)
 			{
-				client_id = atoi(msg.c_str());
+				client_id = atoi(split(str, ":")[1].c_str());
 				continue;
 			}
 
-			eraseText(6); // erase "You : "
+			if (string(str).rfind(SET_ROOM_INFO) == 0)
+			{
+				vector<string> splits = split(str, ":");
+				int roomId = atoi(splits[1].c_str());
+				string roomName = splits[2];
+				
+				select_room_id = roomId;
+				select_room_name = roomName;
+
+				eraseText(100);
+				
+				cout << colors[NUM_COLORS - 1] << "current roomID: " << select_room_id << endl
+					 << def_color;
+				cout << color(client_id) << "[" << select_room_name << "]" << "You : " << def_color;
+				fflush(stdout);
+				continue;
+			}
+
+			vector<string> splits = split(str, ":");
+			string command = splits[0], msg = splits[1];
+
+			eraseText(100); // erase "You : "
 			cout << colors[NUM_COLORS - 1] << msg << endl
 				 << def_color;
 
@@ -215,31 +236,29 @@ void recv_message(int client_socket)
 			if (strncmp(command.c_str(), CREATE_ROOM, sizeof(CREATE_ROOM)) == 0)
 			{
 				int roomId = atoi(splits[2].c_str());
-				select_room_id = roomId;
-
-				cout << colors[NUM_COLORS - 1] << "current roomID: " << select_room_id << endl
-					 << def_color;
 
 				// Format -> #ER:roomID
-				combine(send_msg, ":", {ENTER_ROOM, to_string(select_room_id).c_str()});
+				combine(send_msg, ":", {ENTER_ROOM, to_string(roomId).c_str()});
 
 				send(client_socket, send_msg, sizeof(send_msg), 0);
-			}
 
-			cout << color(client_id) << "You : " << def_color;
+			} 
+
+			cout << color(client_id) << "[" << select_room_name << "]" << "You : " << def_color;
 			fflush(stdout);
 			continue;
 		}
 
+		// Handle msg of room
 		// Format -> name:colorId:roomId:msg
 		vector<string> splits = split(str, ":");
 		string name = splits[0], msg = splits[3];
 		int color_code = atoi(splits[1].c_str());
 
-		eraseText(6); // erase "You : "
+		eraseText(100); // erase "You : "
 
-		cout << color(color_code) << name << " : " << def_color << msg << endl;
-		cout << color(client_id) << "You : " << def_color;
+		cout << color(color_code) << "[" << select_room_name << "]" << name << " : " << def_color << msg << endl;
+		cout << color(client_id) << "[" << select_room_name << "]" << "You : " << def_color;
 
 		fflush(stdout);
 	}

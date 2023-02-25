@@ -307,6 +307,10 @@ void handle_client(int client_socket, int id)
 				lock_guard<mutex> guard_clients(clients_mtx);
 				clients[id].select_room_id = roomId;
 
+				// Format -> #SET_ROOM_ID:roomId:room_name
+				combine(msg, ":", {SET_ROOM_INFO, to_string(roomId).c_str(), rooms[roomId].name.c_str()});
+				send(client_socket, msg, sizeof(msg), 0);
+
 				// send to clients who has joined this room
 				combine(msg, "\0", {"*", name, " has joined the room \'", rooms[roomId].name.c_str(), "\'"});
 
