@@ -241,20 +241,21 @@ void handle_client(int client_socket, int id)
 			/****** SHOW_ROOMS = "#SR" ******/
 			if (strcmp(str, SHOW_ROOMS) == 0)
 			{
-				string roomsStr;
+				//string roomsStr;
+				memset(str, 0, MAX_LEN);
+				strcat(str, "*");
 
-				for (auto &c : rooms)
+				for (auto it = rooms.begin(); it != rooms.end(); it++)
 				{
-					string r = "(" + to_string(c.first) + ")" + c.second.name + ", ";
-					roomsStr += r;
+					strcat(str, "(");
+					strcat(str, to_string(it->first).c_str());
+					strcat(str, ") ");
+					strcat(str, it->second.name.c_str());
+
+					if (next(it) != rooms.end()) {
+						strcat(str, "\n ");
+					}
 				}
-
-				// remove ", " from the back of roomsStr
-				roomsStr.pop_back();
-				roomsStr.pop_back();
-
-				// Format -> #SR:msg
-				combine(str, ":", {SHOW_ROOMS, roomsStr.c_str()});
 
 				cout << str << endl;
 
@@ -317,6 +318,35 @@ void handle_client(int client_socket, int id)
 				send(client_socket, msg, sizeof(msg), 0);
 				broadcast_message(msg, id, roomId);
 				shared_print(msg);
+			}
+			/****** ENTER_ROOM = "#ER"******/
+			else if (string(str).rfind(LEFT_ROOM) == 0)
+			{
+				vector<string> splits = split(str, ":");
+				int roomId = atoi(splits[1].c_str());
+
+				rooms[roomId].clients.erase(id);
+
+				// delete this room
+				if (rooms[roomId].clients.empty()) {
+					string roomName = rooms[roomId].name;
+					rooms.erase(roomId);
+					combine(msg, "\0", {"*", roomName.c_str(), " has been closed"});
+					send(client_socket, msg, sizeof(msg), 0);
+					continue;
+				}
+
+				combine(msg, "\0", {"*", clients[id].name.c_str(), " left the room"});
+				broadcast_message(msg, id, roomId);
+
+				// 如果該client是房長，換人當房長
+				if (rooms[roomId].owner_id == id) {
+					int next_onwer_id = *rooms[roomId].clients.begin();
+					rooms[roomId].owner_id = next_onwer_id;
+					combine(msg, "\0", {"*", clients[next_onwer_id].name.c_str(), " is the new owner"});
+					broadcast_message(msg, id, roomId);
+					continue;
+				}
 			}
 			continue;
 		}
