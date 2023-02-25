@@ -1,4 +1,12 @@
-# Chatroom 
+# Chat Room Application
+
+This side project create chat room application for clients are able to communicate each other.
+This project has serveral features as follows:
+- The client can see the list of rooms on the server.
+- The client can create its own room, or it can enter the room which has been created.
+- Clients who is joined the specific room can talk with each other.
+- The client can leave the room, server will notify clients who is joined this room that the client leave. 
+- The client can terminate the program directly.
 
 ## Library
 - socket
@@ -10,6 +18,11 @@
 Compile and link:
 ```
 make
+```
+
+Clean output files:
+```
+make clean
 ```
 
 Run the server
@@ -24,9 +37,10 @@ Run the client
 
 ## Commands of the client
 
-```
-#EXIT : Exit the program
-#SR : Show chat rooms
-#CR(room_name, room_capacity): Create chat room with the room_name and the room_capacity
-#ER(room_id) : Enter the room with the room_id
-```
+| Command | Full Name  | Parameters     |
+| ------- | ---------  | ----------     |
+| #SR     | SHOW_ROOMS | None           |
+| #CR     | CREATE_ROOM| name, capacity |
+| #ER     | ENTER_ROOM | room_id        |
+| #LR     | LEFT_ROOM  | None           |
+| #EXIT   | EXIT       | None           |

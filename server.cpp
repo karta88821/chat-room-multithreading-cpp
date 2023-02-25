@@ -225,7 +225,7 @@ void handle_client(int client_socket, int id)
 		// Handle commands
 		if (str[0] == '#')
 		{
-			/****** EXIT = "#exit" ******/
+			/****** EXIT = "#EXIT" ******/
 			if (strcmp(str, EXIT) == 0)
 			{
 				// Display leaving message
