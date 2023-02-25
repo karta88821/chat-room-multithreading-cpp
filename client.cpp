@@ -92,8 +92,7 @@ int main()
 // Handler for "Ctrl + C"
 void catch_ctrl_c(int signal)
 {
-	char str[MAX_LEN] = "#exit";
-	send(client_socket, str, sizeof(str), 0);
+	send(client_socket, EXIT, sizeof(EXIT), 0);
 	exit_flag = true;
 	t_send.detach();
 	t_recv.detach();
